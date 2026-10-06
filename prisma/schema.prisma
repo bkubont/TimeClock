@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Owner {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String
+  displayName          String?
+  timezone             String    @default("America/Detroit")
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  shifts               Shift[]
+  locations            Location[]
+}
+
+model Shift {
+  id         String          @id @default(cuid())
+  ownerId    String
+  owner      Owner           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  clockInAt  DateTime
+  clockOutAt DateTime?
+  /// ACTIVE | COMPLETED
+  status     String          @default("ACTIVE")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  events     TimelineEvent[]
+
+  @@index([ownerId, status])
+  @@index([ownerId, clockInAt])
+}
+
+model Location {
+  id         String          @id @default(cuid())
+  ownerId    String
+  owner      Owner           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name       String
+  address    String?
+  note       String?
+  archived   Boolean         @default(false)
+  lastUsedAt DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  events     TimelineEvent[]
+
+  @@index([ownerId, archived, lastUsedAt])
+}
+
+model TimelineEvent {
+  id           String    @id @default(cuid())
+  shiftId      String
+  shift        Shift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  /// CLOCK_IN | CLOCK_OUT | LOCATION_CHANGE | NOTE
+  type         String
+  occurredAt   DateTime
+  locationId   String?
+  location     Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  noteText     String?
+  /// ERRAND | SUPPLY_RUN | GENERAL
+  noteCategory String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([shiftId, occurredAt])
+}
