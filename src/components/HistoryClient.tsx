@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DayDetailsEditor } from "./DayDetailsEditor";
+import { PunchTimesEditor } from "./PunchTimesEditor";
 import { Timeline, type TimelineEventView } from "./Timeline";
 import { formatDateTime, formatTime } from "@/lib/time";
 
@@ -54,6 +55,7 @@ export function HistoryClient() {
   const [data, setData] = useState<HistoryData | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [punchDay, setPunchDay] = useState<DayRow | null>(null);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({ filter, view });
@@ -166,6 +168,14 @@ export function HistoryClient() {
                   >
                     <DayHeader day={day} tz={data.timezone} />
                   </button>
+                  <div className="mt-3 no-print">
+                    <button
+                      className="btn btn-secondary w-full"
+                      onClick={() => setPunchDay(day)}
+                    >
+                      Edit punch times
+                    </button>
+                  </div>
                   <div className="print-only">
                     <DayHeader day={day} tz={data.timezone} />
                   </div>
@@ -234,6 +244,21 @@ export function HistoryClient() {
       ) : (
         <p className="text-muted">Loading history…</p>
       )}
+
+      {punchDay ? (
+        <PunchTimesEditor
+          open
+          onClose={() => setPunchDay(null)}
+          onSaved={() => {
+            void load();
+          }}
+          shiftId={punchDay.id}
+          clockInAt={punchDay.clockInAt}
+          clockOutAt={punchDay.clockOutAt}
+          status={punchDay.status}
+          timezone={data?.timezone}
+        />
+      ) : null}
     </div>
   );
 }

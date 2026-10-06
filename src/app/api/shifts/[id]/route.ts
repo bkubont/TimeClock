@@ -4,8 +4,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const updateSchema = z.object({
-  clockInAt: z.string().datetime().optional(),
-  clockOutAt: z.string().datetime().nullable().optional(),
+  clockInAt: z.string().min(1).optional(),
+  clockOutAt: z.string().min(1).nullable().optional(),
 });
 
 type Params = { params: Promise<{ id: string }> };
@@ -74,6 +74,13 @@ export async function PATCH(req: Request, { params }: Params) {
         : parsed.data.clockOutAt
           ? new Date(parsed.data.clockOutAt)
           : null;
+
+    if (Number.isNaN(clockInAt.getTime())) {
+      return NextResponse.json({ error: "Invalid punch-in time." }, { status: 400 });
+    }
+    if (clockOutAt && Number.isNaN(clockOutAt.getTime())) {
+      return NextResponse.json({ error: "Invalid punch-out time." }, { status: 400 });
+    }
 
     if (clockOutAt && clockOutAt.getTime() <= clockInAt.getTime()) {
       return NextResponse.json(

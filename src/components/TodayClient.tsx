@@ -4,13 +4,24 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { ElapsedTimer } from "./ElapsedTimer";
 import { LocationPicker } from "./LocationPicker";
 import { NoteForm } from "./NoteForm";
+import { PunchTimesEditor } from "./PunchTimesEditor";
 import { Timeline, type TimelineEventView } from "./Timeline";
 import { formatDateTime, formatTime } from "@/lib/time";
+
+type ShiftSummary = {
+  id: string;
+  status: string;
+  clockInAt: string;
+  clockOutAt: string | null;
+  durationLabel: string;
+  events: TimelineEventView[];
+};
 
 type TodayData = {
   timezone: string;
   activeShift: null | {
     id: string;
+    status: string;
     clockInAt: string;
     elapsedLabel: string;
     longShiftWarning: boolean;
@@ -19,11 +30,8 @@ type TodayData = {
     events: TimelineEventView[];
     locationTotals: { locationName: string; durationLabel: string }[];
   };
-  lastCompleted: null | {
-    clockInAt: string;
-    clockOutAt: string | null;
-    durationLabel: string;
-  };
+  todayCompleted: ShiftSummary[];
+  lastCompleted: ShiftSummary | null;
 };
 
 export function TodayClient() {
@@ -31,6 +39,13 @@ export function TodayClient() {
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [punchShift, setPunchShift] = useState<{
+    id: string;
+    clockInAt: string;
+    clockOutAt: string | null;
+    status: string;
+    focus?: "clock_in" | "clock_out";
+  } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const load = useCallback(async () => {
@@ -85,6 +100,8 @@ export function TodayClient() {
   }
 
   const active = data.activeShift;
+  const editableCompleted =
+    data.todayCompleted[0] ?? data.lastCompleted ?? null;
 
   return (
     <div className="space-y-4 pb-4 pt-2">
@@ -108,12 +125,28 @@ export function TodayClient() {
           >
             Clock In
           </button>
-          {data.lastCompleted ? (
-            <p className="mt-5 text-sm text-muted">
-              Last day: {formatDateTime(new Date(data.lastCompleted.clockInAt), data.timezone)}
-              {" · "}
-              {data.lastCompleted.durationLabel}
-            </p>
+          {editableCompleted ? (
+            <div className="mt-5 space-y-3 text-left">
+              <p className="text-sm text-muted text-center">
+                Last day:{" "}
+                {formatDateTime(new Date(editableCompleted.clockInAt), data.timezone)}
+                {" · "}
+                {editableCompleted.durationLabel}
+              </p>
+              <button
+                className="btn btn-secondary w-full"
+                onClick={() =>
+                  setPunchShift({
+                    id: editableCompleted.id,
+                    clockInAt: editableCompleted.clockInAt,
+                    clockOutAt: editableCompleted.clockOutAt,
+                    status: editableCompleted.status,
+                  })
+                }
+              >
+                Edit punch times
+              </button>
+            </div>
           ) : null}
         </section>
       ) : (
@@ -130,10 +163,24 @@ export function TodayClient() {
             <p className="mt-4 text-base font-semibold text-ink">
               {active.currentLocation?.name ?? "Unassigned"}
             </p>
+            <button
+              className="btn btn-secondary mt-4 w-full"
+              onClick={() =>
+                setPunchShift({
+                  id: active.id,
+                  clockInAt: active.clockInAt,
+                  clockOutAt: null,
+                  status: "ACTIVE",
+                  focus: "clock_in",
+                })
+              }
+            >
+              Edit punch times
+            </button>
             {active.longShiftWarning ? (
               <p className="mt-3 rounded-lg bg-gold-soft px-3 py-2 text-sm text-ink">
-                This shift has been open a long time. Clock out when done, or correct later in
-                History.
+                This shift has been open a long time. Edit punch out here, or clock out when
+                done.
               </p>
             ) : null}
           </section>
@@ -184,6 +231,19 @@ export function TodayClient() {
               Today timeline
             </h2>
             <Timeline events={active.events} timezone={data.timezone} />
+            <button
+              className="btn btn-secondary mt-4 w-full"
+              onClick={() =>
+                setPunchShift({
+                  id: active.id,
+                  clockInAt: active.clockInAt,
+                  clockOutAt: null,
+                  status: "ACTIVE",
+                })
+              }
+            >
+              Edit punch in / out
+            </button>
           </section>
         </>
       )}
@@ -200,6 +260,19 @@ export function TodayClient() {
         onClose={() => setNoteOpen(false)}
         onSaved={() => void load()}
       />
+      {punchShift ? (
+        <PunchTimesEditor
+          open
+          onClose={() => setPunchShift(null)}
+          onSaved={() => void load()}
+          shiftId={punchShift.id}
+          clockInAt={punchShift.clockInAt}
+          clockOutAt={punchShift.clockOutAt}
+          status={punchShift.status}
+          timezone={data.timezone}
+          focus={punchShift.focus}
+        />
+      ) : null}
     </div>
   );
 }

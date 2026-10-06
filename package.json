@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push --skip-generate && next build --webpack",
+    "build": "prisma generate && sh -c 'case \"$DATABASE_URL\" in mysql://*) prisma db push --skip-generate;; esac' && next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",

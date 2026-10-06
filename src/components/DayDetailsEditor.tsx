@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { PunchTimesEditor } from "./PunchTimesEditor";
 import {
   DEFAULT_TZ,
   formatTime,
@@ -33,9 +34,9 @@ type Props = {
 function eventLabel(event: EditableEvent): string {
   switch (event.type) {
     case "CLOCK_IN":
-      return "Clocked in";
+      return "Punched in";
     case "CLOCK_OUT":
-      return "Clocked out";
+      return "Punched out";
     case "LOCATION_CHANGE":
       return event.locationName
         ? `Arrived at ${event.locationName}`
@@ -65,10 +66,8 @@ export function DayDetailsEditor({
   timezone = DEFAULT_TZ,
   onSaved,
 }: Props) {
-  const [inValue, setInValue] = useState(toDatetimeLocalValue(new Date(clockInAt), timezone));
-  const [outValue, setOutValue] = useState(
-    clockOutAt ? toDatetimeLocalValue(new Date(clockOutAt), timezone) : "",
-  );
+  const [punchOpen, setPunchOpen] = useState(false);
+  const [punchFocus, setPunchFocus] = useState<"clock_in" | "clock_out">("clock_in");
   const [editingEvent, setEditingEvent] = useState<EditableEvent | null>(null);
   const [eventTime, setEventTime] = useState("");
   const [eventNote, setEventNote] = useState("");
@@ -77,11 +76,6 @@ export function DayDetailsEditor({
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    setInValue(toDatetimeLocalValue(new Date(clockInAt), timezone));
-    setOutValue(clockOutAt ? toDatetimeLocalValue(new Date(clockOutAt), timezone) : "");
-  }, [clockInAt, clockOutAt, timezone]);
 
   useEffect(() => {
     fetch("/api/locations?archived=1")
@@ -97,32 +91,18 @@ export function DayDetailsEditor({
       .catch(() => undefined);
   }, []);
 
-  function saveShiftTimes() {
-    setError(null);
-    startTransition(async () => {
-      const body: { clockInAt: string; clockOutAt: string | null } = {
-        clockInAt: fromDatetimeLocalValue(inValue, timezone).toISOString(),
-        clockOutAt: outValue
-          ? fromDatetimeLocalValue(outValue, timezone).toISOString()
-          : null,
-      };
-      const res = await fetch(`/api/shifts/${shiftId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Could not save shift times.");
-        return;
-      }
-      onSaved();
-    });
+  function openPunch(focus: "clock_in" | "clock_out" = "clock_in") {
+    setPunchFocus(focus);
+    setPunchOpen(true);
   }
 
   function openEventEdit(event: EditableEvent) {
-    if (event.type === "CLOCK_IN" || event.type === "CLOCK_OUT") {
-      setError("Edit clock in/out with the shift times above.");
+    if (event.type === "CLOCK_IN") {
+      openPunch("clock_in");
+      return;
+    }
+    if (event.type === "CLOCK_OUT") {
+      openPunch("clock_out");
       return;
     }
     setEditingEvent(event);
@@ -186,37 +166,27 @@ export function DayDetailsEditor({
     <div className="mt-3 space-y-4 border-t border-black/8 pt-3">
       {error ? <p className="text-sm text-danger">{error}</p> : null}
 
-      <div className="space-y-2 no-print">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted">
-          Correct shift times
-        </h3>
+      <div className="no-print space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-muted">
+              Punch times
+            </h3>
+            <p className="text-sm text-ink">
+              {formatTime(new Date(clockInAt), timezone)}
+              {" – "}
+              {clockOutAt ? formatTime(new Date(clockOutAt), timezone) : "Open"}
+            </p>
+          </div>
+          <button className="btn btn-primary min-h-11 px-4" onClick={() => openPunch()}>
+            Edit
+          </button>
+        </div>
         {status === "ACTIVE" ? (
           <p className="text-xs text-danger">
-            Open shift — set a clock-out time to close a forgotten clock-out, or leave blank
-            to keep it active.
+            Open shift — edit punch out to close a forgotten clock-out.
           </p>
         ) : null}
-        <label className="block text-sm font-semibold">
-          Clock in
-          <input
-            type="datetime-local"
-            className="field mt-1"
-            value={inValue}
-            onChange={(e) => setInValue(e.target.value)}
-          />
-        </label>
-        <label className="block text-sm font-semibold">
-          Clock out
-          <input
-            type="datetime-local"
-            className="field mt-1"
-            value={outValue}
-            onChange={(e) => setOutValue(e.target.value)}
-          />
-        </label>
-        <button className="btn btn-primary w-full" disabled={pending} onClick={saveShiftTimes}>
-          Save shift times
-        </button>
       </div>
 
       <div>
@@ -231,27 +201,39 @@ export function DayDetailsEditor({
               </div>
               <div className="min-w-0 flex-1 border-l-2 border-brand-soft pl-3">
                 <p className="text-sm font-semibold text-ink">{eventLabel(event)}</p>
-                {event.type === "NOTE" || event.type === "LOCATION_CHANGE" ? (
-                  <div className="mt-1 flex gap-2 no-print">
-                    <button
-                      className="text-xs font-semibold text-brand"
-                      onClick={() => openEventEdit(event)}
-                    >
-                      Edit
-                    </button>
+                <div className="mt-1 flex gap-2 no-print">
+                  <button
+                    className="text-xs font-semibold text-brand"
+                    onClick={() => openEventEdit(event)}
+                  >
+                    Edit
+                  </button>
+                  {event.type === "NOTE" || event.type === "LOCATION_CHANGE" ? (
                     <button
                       className="text-xs font-semibold text-danger"
                       onClick={() => deleteEvent(event)}
                     >
                       Delete
                     </button>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
             </li>
           ))}
         </ol>
       </div>
+
+      <PunchTimesEditor
+        open={punchOpen}
+        onClose={() => setPunchOpen(false)}
+        onSaved={onSaved}
+        shiftId={shiftId}
+        clockInAt={clockInAt}
+        clockOutAt={clockOutAt}
+        status={status}
+        timezone={timezone}
+        focus={punchFocus}
+      />
 
       {editingEvent ? (
         <>
