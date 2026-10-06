@@ -1,8 +1,8 @@
 {
-  "domain": "lime-porpoise-825715.hostingersite.com",
+  "domain": "timeclock.squarethisup.com",
   "username": "u545976535",
   "type": "nodejs",
   "order_id": 1009469305,
-  "intended_domain": "timeclock.squarethisup.com",
-  "notes": "Horizons still owns timeclock.squarethisup.com and cannot be deleted via API. Delete Horizons in hPanel, then create/park the custom domain on this Node site and update AUTH_URL/NEXTAUTH_URL."
+  "previous_domain": "lime-porpoise-825715.hostingersite.com",
+  "database": "u545976535_tclock"
 }
