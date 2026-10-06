@@ -1,8 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { DayDetailsEditor } from "./DayDetailsEditor";
 import { Timeline, type TimelineEventView } from "./Timeline";
 import { formatDateTime, formatTime } from "@/lib/time";
+
+type DayEvent = TimelineEventView & {
+  locationId?: string | null;
+};
 
 type DayRow = {
   id: string;
@@ -14,7 +19,7 @@ type DayRow = {
   noteCount: number;
   locationsVisited: string[];
   locationTotals: { locationName: string; durationLabel: string; decimalHours: number }[];
-  events: TimelineEventView[];
+  events: DayEvent[];
   longOpen: boolean;
 };
 
@@ -179,7 +184,20 @@ export function HistoryClient() {
                         </li>
                       ))}
                     </ul>
-                    <Timeline events={day.events} timezone={data.timezone} />
+                    <div className="print-only">
+                      <Timeline events={day.events} timezone={data.timezone} />
+                    </div>
+                    {expanded === day.id ? (
+                      <DayDetailsEditor
+                        shiftId={day.id}
+                        clockInAt={day.clockInAt}
+                        clockOutAt={day.clockOutAt}
+                        status={day.status}
+                        events={day.events}
+                        timezone={data.timezone}
+                        onSaved={() => void load()}
+                      />
+                    ) : null}
                   </div>
                 </section>
               ))

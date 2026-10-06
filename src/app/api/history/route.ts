@@ -34,7 +34,11 @@ export async function GET(req: Request) {
   const shifts = await prisma.shift.findMany({
     where: {
       ownerId: session.user.id,
-      clockInAt: { gte: range.start, lte: range.end },
+      OR: [
+        { clockInAt: { gte: range.start, lte: range.end } },
+        // Always surface an active/forgotten open shift for correction.
+        { status: "ACTIVE" },
+      ],
     },
     include: {
       events: {

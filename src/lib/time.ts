@@ -31,6 +31,17 @@ export function formatShortDate(date: Date, tz = DEFAULT_TZ): string {
   return formatInTimeZone(date, tz, "yyyy-MM-dd");
 }
 
+/** Value for `<input type="datetime-local">` in the display timezone. */
+export function toDatetimeLocalValue(date: Date, tz = DEFAULT_TZ): string {
+  return formatInTimeZone(date, tz, "yyyy-MM-dd'T'HH:mm");
+}
+
+/** Parse a datetime-local value as wall time in the display timezone. */
+export function fromDatetimeLocalValue(value: string, tz = DEFAULT_TZ): Date {
+  const normalized = value.length === 16 ? `${value}:00` : value;
+  return fromZonedTime(normalized, tz);
+}
+
 /** Elapsed ms between two real timestamps (DST-safe). */
 export function elapsedMs(start: Date, end: Date): number {
   return Math.max(0, end.getTime() - start.getTime());
